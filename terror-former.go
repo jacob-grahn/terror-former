@@ -38,27 +38,43 @@ func main() {
 			// Send the contnet to LLM api  and get the result
 			// Define the payload structure
 			type Payload struct {
-				Model    string `json:"model"`
+				Model          string `json:"model"`
+				ResponseFormat struct {
+					Type string `json:"type"`
+				} `json:"response_format"`
 				Messages []struct {
 					Role    string `json:"role"`
 					Content string `json:"content"`
 				} `json:"messages"`
 			}
 
+			type Response struct {
+				Choices []struct {
+					Message struct {
+						Content string `json:"content"`
+					} `json:"message"`
+				} `json:"choices"`
+			}
+
 			// Create the payload
 			payload := Payload{
-				Model: "gpt-3.5-turbo",
+				Model: "gpt-3.5-turbo-1106",
+				ResponseFormat: struct {
+					Type string `json:"type"`
+				}{
+					Type: "json_object",
+				},
 				Messages: []struct {
 					Role    string `json:"role"`
 					Content string `json:"content"`
 				}{
 					{
 						Role:    "system",
-						Content: "You are a helpful assistant.",
+						Content: "You always respond with JSON. You are a helpful senior infrastructure engineer who is an expert using Terraform to write infrastructure as code.",
 					},
 					{
 						Role:    "user",
-						Content: string(content),
+						Content: "Think about it step by step, and create a list of terraform modules that will be required to provision infrastructure that meets the following requirements. Keep in mind you will also need a core module that provisions one or more of the other modules. Format your response like {\"module_1\": \"description\", \"module_2\": \"description\", ...}\" \n --- \n" + string(content),
 					},
 				},
 			}
@@ -97,9 +113,17 @@ func main() {
 				return
 			}
 
-			// Print the response
-			fmt.Println("Response from LLM:")
-			fmt.Println(string(respContent))
+			// Unmarshal the response
+			var respContentParsed Response
+			err = json.Unmarshal(respContent, &respContentParsed)
+			if err != nil {
+				fmt.Println("Error unmarshaling response:", err)
+				return
+			}
+
+			// Print the content
+			fmt.Println("Content from LLM:")
+			fmt.Println(respContentParsed.Choices[0].Message.Content)
 		},
 	}
 
